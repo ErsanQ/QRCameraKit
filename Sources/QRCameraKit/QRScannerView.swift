@@ -5,39 +5,7 @@ import AVFoundation
 // MARK: - QRScannerView
 
 /// A full-screen SwiftUI camera view that scans QR codes and barcodes.
-///
-/// ## Basic usage
-/// ```swift
-/// QRScannerView { code in
-///     print("Scanned:", code)
-/// }
-/// ```
-///
-/// ## With error handling
-/// ```swift
-/// QRScannerView { result in
-///     switch result {
-///     case .success(let code):
-///         handleCode(code)
-///     case .failure(let error):
-///         if error.requiresSettingsRedirect {
-///             openSettings()
-///         }
-///     }
-/// }
-/// ```
-///
-/// ## Custom configuration
-/// ```swift
-/// QRScannerView(
-///     configuration: QRScannerConfiguration(
-///         codeTypes: [.qr, .ean13],
-///         overlayColor: .yellow
-///     )
-/// ) { result in
-///     handleResult(result)
-/// }
-/// ```
+@MainActor
 public struct QRScannerView: View {
 
     // MARK: - Properties
@@ -49,28 +17,23 @@ public struct QRScannerView: View {
 
     // MARK: - Init
 
-    /// Creates a scanner with a simple string callback (success only).
-    ///
-    /// Errors are silently ignored. Use the `Result`-based init if you need error handling.
     public init(
         configuration: QRScannerConfiguration = .default,
         onScan: @escaping (String) -> Void
     ) {
-        self.configuration = configuration
-        self.onResult = { result in
+        let resultHandler: (QRScanResult) -> Void = { result in
             if case .success(let code) = result { onScan(code) }
         }
+        self.configuration = configuration
+        self.onResult = resultHandler
         self._viewModel = StateObject(
             wrappedValue: QRScannerViewModel(
                 configuration: configuration,
-                onResult: { result in
-                    if case .success(let code) = result { onScan(code) }
-                }
+                onResult: resultHandler
             )
         )
     }
 
-    /// Creates a scanner with a full `Result` callback.
     public init(
         configuration: QRScannerConfiguration = .default,
         onResult: @escaping (QRScanResult) -> Void
@@ -89,16 +52,19 @@ public struct QRScannerView: View {
 
     public var body: some View {
         ZStack {
-            // Camera feed
+            #if !targetEnvironment(simulator)
             QRCameraPreview(session: viewModel.session)
                 .ignoresSafeArea()
+            #else
+            Color.black.ignoresSafeArea()
+            Text("Camera Not Available in Simulator")
+                .foregroundColor(.white)
+            #endif
 
-            // Default overlay
             if configuration.showOverlay {
                 QRScannerOverlay(color: configuration.overlayColor)
             }
 
-            // Permission denied state
             if viewModel.permissionDenied {
                 QRPermissionDeniedView()
             }
@@ -115,16 +81,13 @@ final class QRScannerViewModel: ObservableObject {
 
     @Published var permissionDenied = false
 
+    #if canImport(AVFoundation)
     let session: AVCaptureSession
     private let cameraSession: QRCameraSession
 
     init(configuration: QRScannerConfiguration, onResult: @escaping (QRScanResult) -> Void) {
         let cam = QRCameraSession(configuration: configuration) { result in
             DispatchQueue.main.async {
-                if case .failure(let error) = result,
-                   case .cameraPermissionDenied = error {
-                    // Will be handled by permissionDenied flag below
-                }
                 onResult(result)
             }
         }
@@ -136,6 +99,11 @@ final class QRScannerViewModel: ObservableObject {
 
     func start() { cameraSession.start() }
     func stop()  { cameraSession.stop() }
+    #else
+    init(configuration: QRScannerConfiguration, onResult: @escaping (QRScanResult) -> Void) {}
+    func start() {}
+    func stop() {}
+    #endif
 }
 
 // MARK: - QRPermissionDeniedView
@@ -158,9 +126,11 @@ private struct QRPermissionDeniedView: View {
                 .padding(.horizontal, 40)
 
             Button("Open Settings") {
+                #if os(iOS)
                 if let url = URL(string: UIApplication.openSettingsURLString) {
                     UIApplication.shared.open(url)
                 }
+                #endif
             }
             .buttonStyle(.borderedProminent)
             .tint(.white)
@@ -170,14 +140,4 @@ private struct QRPermissionDeniedView: View {
         .background(.black.opacity(0.85))
     }
 }
-
-// MARK: - Preview
-
-#if DEBUG
-#Preview {
-    QRScannerView { code in
-        print("Scanned:", code)
-    }
-}
-#endif
 #endif

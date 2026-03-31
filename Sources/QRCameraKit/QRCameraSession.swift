@@ -1,18 +1,28 @@
-#if canImport(UIKit)
+#if canImport(AVFoundation)
 import AVFoundation
+#endif
+
+#if canImport(UIKit)
 import UIKit
+#endif
+
+import Foundation
 
 // MARK: - QRCameraSession
 
 /// Manages the `AVCaptureSession` lifecycle and metadata output.
 ///
 /// This is an internal class — consumers interact with ``QRScannerView`` directly.
+@MainActor
 final class QRCameraSession: NSObject {
 
     // MARK: - Properties
 
+    #if canImport(AVFoundation)
     let session = AVCaptureSession()
     private let metadataOutput = AVCaptureMetadataOutput()
+    #endif
+    
     private let sessionQueue = DispatchQueue(label: "com.qrcamerakit.session", qos: .userInitiated)
 
     private let configuration: QRScannerConfiguration
@@ -32,6 +42,7 @@ final class QRCameraSession: NSObject {
     // MARK: - Setup
 
     func requestPermissionAndConfigure() {
+        #if canImport(AVFoundation)
         switch AVCaptureDevice.authorizationStatus(for: .video) {
         case .authorized:
             sessionQueue.async { self.configureSession() }
@@ -56,9 +67,13 @@ final class QRCameraSession: NSObject {
         @unknown default:
             break
         }
+        #else
+        onResult(.failure(.noCameraAvailable))
+        #endif
     }
 
     private func configureSession() {
+        #if canImport(AVFoundation)
         guard !isConfigured else { return }
 
         session.beginConfiguration()
@@ -95,29 +110,35 @@ final class QRCameraSession: NSObject {
         session.commitConfiguration()
         isConfigured = true
         session.startRunning()
+        #endif
     }
 
     // MARK: - Lifecycle
 
     func start() {
+        #if canImport(AVFoundation)
         sessionQueue.async {
             if self.isConfigured && !self.session.isRunning {
                 self.session.startRunning()
             }
         }
+        #endif
     }
 
     func stop() {
+        #if canImport(AVFoundation)
         sessionQueue.async {
             if self.session.isRunning {
                 self.session.stopRunning()
             }
         }
+        #endif
     }
 }
 
 // MARK: - AVCaptureMetadataOutputObjectsDelegate
 
+#if canImport(AVFoundation)
 extension QRCameraSession: AVCaptureMetadataOutputObjectsDelegate {
 
     func metadataOutput(
@@ -138,7 +159,9 @@ extension QRCameraSession: AVCaptureMetadataOutputObjectsDelegate {
 
         // Haptic feedback
         if configuration.vibrateOnScan {
+            #if canImport(UIKit)
             UINotificationFeedbackGenerator().notificationOccurred(.success)
+            #endif
         }
 
         onResult(.success(stringValue))
