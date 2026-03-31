@@ -1,143 +1,70 @@
-#if canImport(UIKit)
 import SwiftUI
+
+#if canImport(AVFoundation)
 import AVFoundation
+#endif
 
-// MARK: - QRScannerView
-
-/// A full-screen SwiftUI camera view that scans QR codes and barcodes.
+/// A high-performance SwiftUI view for scanning QR codes and barcodes.
+///
+/// `QRScannerView` provides a native camera preview with real-time metadata 
+/// processing. It is optimized for the ErsanQ ecosystem with built-in 
+/// simulator mocking and @MainActor safety.
+///
+/// ## Usage
+/// ```swift
+/// QRScannerView { result in
+///     print("Scanned: \(result.code)")
+/// }
+/// ```
 @MainActor
 public struct QRScannerView: View {
-
-    // MARK: - Properties
-
-    private let configuration: QRScannerConfiguration
-    private let onResult: (QRScanResult) -> Void
-
-    @StateObject private var viewModel: QRScannerViewModel
-
-    // MARK: - Init
-
-    public init(
-        configuration: QRScannerConfiguration = .default,
-        onScan: @escaping (String) -> Void
-    ) {
-        let resultHandler: (QRScanResult) -> Void = { result in
-            if case .success(let code) = result { onScan(code) }
-        }
-        self.configuration = configuration
-        self.onResult = resultHandler
-        self._viewModel = StateObject(
-            wrappedValue: QRScannerViewModel(
-                configuration: configuration,
-                onResult: resultHandler
-            )
-        )
+    private let onScan: (QRScanResult) -> Void
+    
+    /// Creates a new QRScannerView.
+    ///
+    /// - Parameter onScan: A closure called when a code is successfully recognized.
+    public init(onScan: @escaping (QRScanResult) -> Void) {
+        self.onScan = onScan
     }
-
-    public init(
-        configuration: QRScannerConfiguration = .default,
-        onResult: @escaping (QRScanResult) -> Void
-    ) {
-        self.configuration = configuration
-        self.onResult = onResult
-        self._viewModel = StateObject(
-            wrappedValue: QRScannerViewModel(
-                configuration: configuration,
-                onResult: onResult
-            )
-        )
-    }
-
-    // MARK: - Body
-
+    
     public var body: some View {
         ZStack {
-            #if !targetEnvironment(simulator)
-            QRCameraPreview(session: viewModel.session)
-                .ignoresSafeArea()
+            #if targetEnvironment(simulator)
+            SimulatorMockView(onScan: onScan)
+            #elseif os(iOS)
+            CameraScannerLayer(onScan: onScan)
             #else
-            Color.black.ignoresSafeArea()
-            Text("Camera Not Available in Simulator")
-                .foregroundColor(.white)
+            PlatformNotSupportedView()
             #endif
-
-            if configuration.showOverlay {
-                QRScannerOverlay(color: configuration.overlayColor)
-            }
-
-            if viewModel.permissionDenied {
-                QRPermissionDeniedView()
-            }
         }
-        .onAppear { viewModel.start() }
-        .onDisappear { viewModel.stop() }
+        .background(Color.black)
     }
 }
 
-// MARK: - QRScannerViewModel
-
+#if targetEnvironment(simulator)
+/// An internal view used to mock camera behavior when running in the Xcode Simulator.
 @MainActor
-final class QRScannerViewModel: ObservableObject {
-
-    @Published var permissionDenied = false
-
-    #if canImport(AVFoundation)
-    let session: AVCaptureSession
-    private let cameraSession: QRCameraSession
-
-    init(configuration: QRScannerConfiguration, onResult: @escaping (QRScanResult) -> Void) {
-        let cam = QRCameraSession(configuration: configuration) { result in
-            DispatchQueue.main.async {
-                onResult(result)
-            }
-        }
-        self.cameraSession = cam
-        self.session = cam.session
-
-        cam.requestPermissionAndConfigure()
-    }
-
-    func start() { cameraSession.start() }
-    func stop()  { cameraSession.stop() }
-    #else
-    init(configuration: QRScannerConfiguration, onResult: @escaping (QRScanResult) -> Void) {}
-    func start() {}
-    func stop() {}
-    #endif
-}
-
-// MARK: - QRPermissionDeniedView
-
-private struct QRPermissionDeniedView: View {
+private struct SimulatorMockView: View {
+    let onScan: (QRScanResult) -> Void
     var body: some View {
-        VStack(spacing: 16) {
-            Image(systemName: "camera.fill")
-                .font(.system(size: 48))
-                .foregroundStyle(.white)
-
-            Text("Camera Access Required")
-                .font(.headline)
-                .foregroundStyle(.white)
-
-            Text("Please enable camera access in Settings to scan QR codes.")
-                .font(.subheadline)
-                .foregroundStyle(.white.opacity(0.8))
-                .multilineTextAlignment(.center)
-                .padding(.horizontal, 40)
-
-            Button("Open Settings") {
-                #if os(iOS)
-                if let url = URL(string: UIApplication.openSettingsURLString) {
-                    UIApplication.shared.open(url)
-                }
-                #endif
+        VStack {
+            Image(systemName: "qrcode.viewfinder")
+                .font(.system(size: 60))
+            Text("Camera Simulator")
+            Button("Simulate Scan") {
+                onScan(QRScanResult(code: "https://ersanq.com", type: "org.iso.QRCode"))
             }
             .buttonStyle(.borderedProminent)
-            .tint(.white)
-            .foregroundStyle(.black)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(.black.opacity(0.85))
+        .foregroundColor(.white)
     }
 }
 #endif
+
+@MainActor
+private struct PlatformNotSupportedView: View {
+    var body: some View {
+        Text("Camera not supported on this platform.")
+            .foregroundColor(.white)
+    }
+}
