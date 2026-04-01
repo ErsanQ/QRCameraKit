@@ -1,3 +1,4 @@
+#if canImport(SwiftUI)
 #if canImport(UIKit)
 import SwiftUI
 
@@ -143,4 +144,5 @@ private struct CornerShape: Shape {
         return path
     }
 }
+#endif
 #endif

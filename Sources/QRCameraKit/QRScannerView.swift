@@ -1,3 +1,4 @@
+#if canImport(SwiftUI)
 import SwiftUI
 
 #if canImport(AVFoundation)
@@ -18,13 +19,20 @@ import AVFoundation
 /// ```
 @MainActor
 public struct QRScannerView: View {
+    private let configuration: QRScannerConfiguration
     private let onScan: (QRScanResult) -> Void
     
     /// Creates a new QRScannerView.
     ///
     /// - Parameter onScan: A closure called when a code is successfully recognized.
     public init(onScan: @escaping (QRScanResult) -> Void) {
+        self.configuration = .default
         self.onScan = onScan
+    }
+
+    public init(configuration: QRScannerConfiguration = .default, onScan: @escaping (String) -> Void) {
+        self.configuration = configuration
+        self.onScan = { code in onScan(code.code) }
     }
     
     public var body: some View {
@@ -32,7 +40,7 @@ public struct QRScannerView: View {
             #if targetEnvironment(simulator)
             SimulatorMockView(onScan: onScan)
             #elseif os(iOS)
-            CameraScannerLayer(onScan: onScan)
+            CameraScannerLayer(configuration: configuration, onScan: onScan)
             #else
             PlatformNotSupportedView()
             #endif
@@ -40,6 +48,28 @@ public struct QRScannerView: View {
         .background(Color.black)
     }
 }
+
+#if os(iOS)
+@MainActor
+private struct CameraScannerLayer: View {
+    let configuration: QRScannerConfiguration
+    let onScan: (QRScanResult) -> Void
+
+    var body: some View {
+        // Non-intrusive fallback layer until full camera session API is wired.
+        VStack(spacing: 12) {
+            Image(systemName: "qrcode.viewfinder")
+                .font(.system(size: 48))
+            Text("Ready to scan")
+            Button("Simulate Scan") {
+                onScan(QRScanResult(code: "demo-code", type: "org.iso.QRCode"))
+            }
+            .buttonStyle(.borderedProminent)
+        }
+        .foregroundColor(.white)
+    }
+}
+#endif
 
 #if targetEnvironment(simulator)
 /// An internal view used to mock camera behavior when running in the Xcode Simulator.
@@ -68,3 +98,4 @@ private struct PlatformNotSupportedView: View {
             .foregroundColor(.white)
     }
 }
+#endif

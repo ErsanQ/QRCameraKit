@@ -1,3 +1,4 @@
+#if canImport(SwiftUI)
 #if canImport(UIKit)
 import SwiftUI
 import AVFoundation
@@ -41,4 +42,5 @@ final class PreviewView: UIView {
         previewLayer.frame = bounds
     }
 }
+#endif
 #endif

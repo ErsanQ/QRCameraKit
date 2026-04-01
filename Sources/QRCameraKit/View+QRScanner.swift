@@ -1,3 +1,4 @@
+#if canImport(SwiftUI)
 #if canImport(UIKit)
 import SwiftUI
 
@@ -23,15 +24,10 @@ public extension View {
     ///   - isPresented: Controls whether the scanner sheet is visible.
     ///   - configuration: Scanner appearance and behavior. Defaults to ``QRScannerConfiguration/default``.
     ///   - onScan: Called with the scanned string on success. The sheet dismisses automatically.
-    func qrScanner(
-        isPresented: Binding<Bool>,
-        configuration: QRScannerConfiguration = .default,
-        onScan: @escaping (String) -> Void
-    ) -> some View {
+    func qrScanner(isPresented: Binding<Bool>, onScan: @escaping (String) -> Void) -> some View {
         sheet(isPresented: isPresented) {
             QRScannerSheet(
                 isPresented: isPresented,
-                configuration: configuration,
                 onScan: onScan
             )
         }
@@ -50,14 +46,12 @@ public extension View {
     /// ```
     func qrScannerResult(
         isPresented: Binding<Bool>,
-        configuration: QRScannerConfiguration = .default,
         onResult: @escaping (QRScanResult) -> Void
     ) -> some View {
         sheet(isPresented: isPresented) {
             QRScannerSheet(
                 isPresented: isPresented,
-                configuration: configuration,
-                onScan: { code in onResult(.success(code)) }
+                onScan: { code in onResult(QRScanResult(code: code, type: "org.iso.QRCode")) }
             )
         }
     }
@@ -67,12 +61,12 @@ public extension View {
 
 private struct QRScannerSheet: View {
     @Binding var isPresented: Bool
-    let configuration: QRScannerConfiguration
     let onScan: (String) -> Void
 
     var body: some View {
         NavigationStack {
-            QRScannerView(configuration: configuration) { code in
+            QRScannerView { result in
+                let code = result.code
                 onScan(code)
                 isPresented = false
             }
@@ -86,4 +80,5 @@ private struct QRScannerSheet: View {
         }
     }
 }
+#endif
 #endif
