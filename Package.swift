@@ -24,7 +24,6 @@ let package = Package(
             path: "Sources/QRCameraKit"),
         .testTarget(
             name: "QRCameraKitTests",
-            dependencies: ["QRCameraKit"],
-            path: "Tests/QRCameraKitTests"),
+            dependencies: ["QRCameraKit"]),
     ]
 )
