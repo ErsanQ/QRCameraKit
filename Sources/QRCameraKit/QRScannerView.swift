@@ -61,10 +61,16 @@ private struct CameraScannerLayer: View {
             Image(systemName: "qrcode.viewfinder")
                 .font(.system(size: 48))
             Text("Ready to scan")
-            Button("Simulate Scan") {
-                onScan(QRScanResult(code: "demo-code", type: "org.iso.QRCode"))
+            if #available(iOS 15.0, *) {
+                Button("Simulate Scan") {
+                    onScan(QRScanResult(code: "demo-code", type: "org.iso.QRCode"))
+                }
+                .buttonStyle(.borderedProminent)
+            } else {
+                Button("Simulate Scan") {
+                    onScan(QRScanResult(code: "demo-code", type: "org.iso.QRCode"))
+                }
             }
-            .buttonStyle(.borderedProminent)
         }
         .foregroundColor(.white)
     }
@@ -81,10 +87,16 @@ private struct SimulatorMockView: View {
             Image(systemName: "qrcode.viewfinder")
                 .font(.system(size: 60))
             Text("Camera Simulator")
-            Button("Simulate Scan") {
-                onScan(QRScanResult(code: "https://ersanq.com", type: "org.iso.QRCode"))
+            if #available(iOS 15.0, *) {
+                Button("Simulate Scan") {
+                    onScan(QRScanResult(code: "https://ersanq.com", type: "org.iso.QRCode"))
+                }
+                .buttonStyle(.borderedProminent)
+            } else {
+                Button("Simulate Scan") {
+                    onScan(QRScanResult(code: "https://ersanq.com", type: "org.iso.QRCode"))
+                }
             }
-            .buttonStyle(.borderedProminent)
         }
         .foregroundColor(.white)
     }

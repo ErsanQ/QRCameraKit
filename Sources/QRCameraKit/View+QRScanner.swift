@@ -64,18 +64,29 @@ private struct QRScannerSheet: View {
     let onScan: (String) -> Void
 
     var body: some View {
-        NavigationStack {
-            QRScannerView { result in
-                let code = result.code
-                onScan(code)
-                isPresented = false
+        if #available(iOS 16.0, *) {
+            NavigationStack {
+                scannerContent
             }
-            .navigationTitle("Scan QR Code")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { isPresented = false }
-                }
+        } else {
+            NavigationView {
+                scannerContent
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var scannerContent: some View {
+        QRScannerView { result in
+            let code = result.code
+            onScan(code)
+            isPresented = false
+        }
+        .navigationTitle("Scan QR Code")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .cancellationAction) {
+                Button("Cancel") { isPresented = false }
             }
         }
     }

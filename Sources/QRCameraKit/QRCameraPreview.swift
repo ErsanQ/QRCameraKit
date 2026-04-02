@@ -1,5 +1,5 @@
 #if canImport(SwiftUI)
-#if canImport(UIKit)
+#if os(iOS)
 import SwiftUI
 import AVFoundation
 
